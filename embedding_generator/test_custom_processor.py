@@ -167,6 +167,55 @@ class TestCustomProcessor(unittest.TestCase):
                 # Should not crash, and should skip processing since header_path is not a string
                 self.assertEqual(node.metadata["docs_url"], "http://example.com/page")
 
+    def test_run_required_exts_from_config(self):
+        from unittest.mock import MagicMock, patch
+
+        import custom_processor
+
+        # Mock dependencies
+        with (
+            patch("custom_processor.utils.get_common_arg_parser") as mock_get_parser,
+            patch("custom_processor.yaml.safe_load") as mock_yaml_load,
+            patch("custom_processor.DocumentProcessor") as mock_doc_processor_cls,
+            patch("custom_processor.CustomMetadataProcessor"),
+            patch("custom_processor.open", unittest.mock.mock_open(read_data="data")),
+        ):
+            # Setup mock parser
+            mock_args = MagicMock()
+            mock_args.product = "acm"
+            mock_args.version = "2.15"
+            mock_args.folder = "/tmp/docs"
+            mock_args.output = "/tmp/out"
+            mock_args.config = "config.yaml"
+            mock_args.log_level = "INFO"
+            mock_args.unreachable_action = "warn"
+            mock_args.model_name = "mock-model"
+            mock_args.model_dir = "/tmp/model"
+            mock_args.workers = 1
+            mock_args.vector_store_type = "faiss"
+            mock_args.chunk = 1024
+            mock_args.overlap = 0
+            mock_args.index = "default"
+            mock_get_parser.return_value.parse_args.return_value = mock_args
+
+            # Setup mock config
+            mock_yaml_load.return_value = {
+                "processor": {"required_exts": [".md", ".txt"]},
+                "products": {"acm": {"url_template": "http://example.com/{version}"}},
+            }
+
+            # Setup mock instances
+            mock_doc_processor = MagicMock()
+            mock_doc_processor_cls.return_value = mock_doc_processor
+
+            # Execute run
+            custom_processor.run()
+
+            # Verify DocumentProcessor.process was called with required_exts from config
+            mock_doc_processor.process.assert_called_once()
+            kwargs = mock_doc_processor.process.call_args.kwargs
+            self.assertEqual(kwargs["required_exts"], [".md", ".txt"])
+
 
 if __name__ == "__main__":
     unittest.main()

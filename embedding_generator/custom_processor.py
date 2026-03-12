@@ -229,7 +229,10 @@ def run() -> int:
         logging.exception("Failed to load config file: %s", args.config)
         return 1
 
-    # Resolve URL from config
+    # Resolve URL and processor settings from config
+    processor_config = config.get("processor") or {}
+    required_exts = processor_config.get("required_exts", [".md"])
+
     products_config = config.get("products") or {}
     product_config = products_config.get(args.product)
     if not product_config:
@@ -263,12 +266,14 @@ def run() -> int:
         num_workers=args.workers,
         vector_store_type=args.vector_store_type,
         doc_type="text",  # Bypasses MarkdownNodeParser default assignment to respect our wrapper
+        show_progress=True,
     )
 
     # Load and embed the documents
     document_processor.process(
         args.folder,
         metadata=metadata_processor,
+        required_exts=required_exts,
         unreachable_action=args.unreachable_action,
     )
 

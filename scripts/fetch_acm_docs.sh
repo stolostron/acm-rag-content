@@ -29,9 +29,23 @@ fi
 # Ensure output directory is clean
 rm -rf "${OUTPUT_DIR}"
 
-echo "Cloning documentation for version ${ACM_VERSION}..."
-# Clone specifically into the directory we expect (openshift-docs)
-git clone --quiet --single-branch --branch "${ACM_VERSION}_prod" \
-    https://github.com/stolostron/rhacm-docs.git "${REPO_DIR}"
+# Determine branch name
+BRANCH_NAME="${ACM_VERSION}_prod"
+if ! git ls-remote --exit-code --heads https://github.com/stolostron/rhacm-docs.git "${BRANCH_NAME}" >/dev/null 2>&1; then
+    echo "Warning: '${BRANCH_NAME}' not found. Falling back to '${ACM_VERSION}_stage'."
+    BRANCH_NAME="${ACM_VERSION}_stage"
+fi
+
+if [ -d "${REPO_DIR}/.git" ]; then
+    echo "Updating existing documentation repository for version ${ACM_VERSION} (branch: ${BRANCH_NAME})..."
+    git -C "${REPO_DIR}" fetch --quiet origin "${BRANCH_NAME}"
+    git -C "${REPO_DIR}" reset --hard FETCH_HEAD
+    git -C "${REPO_DIR}" clean -fdx
+else
+    echo "Cloning documentation for version ${ACM_VERSION} (branch: ${BRANCH_NAME})..."
+    # Clone specifically into the directory we expect (openshift-docs)
+    git clone --quiet --single-branch --branch "${BRANCH_NAME}" \
+        https://github.com/stolostron/rhacm-docs.git "${REPO_DIR}"
+fi
 
 echo "Done."

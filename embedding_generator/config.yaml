@@ -1,3 +1,6 @@
+processor:
+  required_exts: [".md"]
+
 products:
   acm:
     url_template: "https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/{version}/html-single/"

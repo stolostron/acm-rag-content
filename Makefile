@@ -37,8 +37,8 @@ fetch-docs: check-deps
 # Convert the fetched AsciiDoc files to Markdown using Pandoc
 render-docs: check-deps
 	@echo "Rendering with Pandoc..."
-	@mkdir -p $(PROCESSED_DOCS_DIR)
-	@find $(FETCHED_DOCS_DIR) -name "main.adoc" -type f | grep -v "$(FETCHED_DOCS_DIR)/apis/main.adoc" | while read file; do \
+	mkdir -p $(PROCESSED_DOCS_DIR)
+	find $(FETCHED_DOCS_DIR) -name "main.adoc" -type f | grep -v "$(FETCHED_DOCS_DIR)/apis/main.adoc" | while read file; do \
 		echo "Processing $$file"; \
 		REL_PATH=$${file#$(FETCHED_DOCS_DIR)/}; \
 		OUT_DIR="$(PROCESSED_DOCS_DIR)/$$(dirname $$REL_PATH)"; \
@@ -62,13 +62,14 @@ build-image:
 # Download the HuggingFace embedding model to the local cache
 $(MODEL_DIR)/config.json:
 	@echo "Downloading embedding model..."
-	@mkdir -p $(MODEL_DIR)
-	@$(PYTHON) embedding_generator/scripts/download_embeddings_model.py -l $(MODEL_DIR) -r $(MODEL_NAME)
+	mkdir -p $(MODEL_DIR)
+	$(PYTHON) embedding_generator/scripts/download_embeddings_model.py -l $(MODEL_DIR) -r $(MODEL_NAME)
 
 # Generate vector embeddings locally using the Python virtual environment
 generate-embeddings-local: $(MODEL_DIR)/config.json
 	@echo "Generating embeddings locally..."
-	@mkdir -p $(OUTPUT_DIR)
+	if [ -n "$(OUTPUT_DIR)" ] && [ "$(OUTPUT_DIR)" != "/" ]; then rm -rf $(OUTPUT_DIR); fi
+	mkdir -p $(OUTPUT_DIR)
 	# Restricting underlying library threads to 1 and disabling tokenizer parallelism 
 	# is required to prevent segmentation faults (Error 139) on macOS when using 
 	# multiprocessing with PyTorch.
@@ -93,7 +94,8 @@ generate-embeddings-local: $(MODEL_DIR)/config.json
 # Generate vector embeddings using the isolated Podman container
 generate-embeddings-container: build-image $(MODEL_DIR)/config.json
 	@echo "Generating embeddings using the container image..."
-	@mkdir -p $(OUTPUT_DIR)
+	if [ -n "$(OUTPUT_DIR)" ] && [ "$(OUTPUT_DIR)" != "/" ]; then rm -rf $(OUTPUT_DIR); fi
+	mkdir -p $(OUTPUT_DIR)
 	podman run --rm \
 		-v $(abspath $(DOCS_FOLDER)):/data/input:ro \
 		-v $(abspath $(OUTPUT_DIR)):/data/output \

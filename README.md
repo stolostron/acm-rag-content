@@ -15,6 +15,8 @@ The project provides:
 -   `uv`
 -   `make`
 -   `podman` (for containerized generation)
+-   `asciidoctor` (for rendering docs)
+-   `pandoc` (for rendering docs)
 
 ## Setup
 
@@ -26,9 +28,32 @@ The project provides:
 
 ## Usage
 
+### Adding a New Documentation Version
+
+To fetch, process, and generate embeddings for a new version of the ACM documentation (e.g., version `2.16`), follow these steps in order:
+
+1.  **Fetch the raw documentation:**
+    This clones the corresponding branch from the `rhacm-docs` repository.
+    ```bash
+    make fetch-docs VERSION=2.16
+    ```
+
+2.  **Render the documentation to Markdown:**
+    This converts the raw AsciiDoc files into Markdown files, extracting custom anchor IDs along the way.
+    ```bash
+    make render-docs VERSION=2.16
+    ```
+    *Note: You can run `make update-docs VERSION=2.16` to perform both the fetch and render steps sequentially while automatically cleaning up the temporary files.*
+
+3.  **Generate the embeddings:**
+    Once the documentation is rendered into `docs/acm/2.16`, you can generate the vector database.
+    ```bash
+    make generate-embeddings-local VERSION=2.16
+    ```
+
 ### Generating Embeddings (Local)
 
-To generate the vector database locally on your machine, run the generation command from the root of the repository:
+To generate the vector database locally on your machine for the default version (`2.15`), run:
 
 ```bash
 make generate-embeddings-local
@@ -62,7 +87,7 @@ uv run scripts/query_local.py --query "Your question here"
 uv run scripts/query_local.py --query "What is ACM Observability?"
 ```
 
-This will load the FAISS index and metadata from `vector_db/acm/2.15` and return the most relevant document chunks.
+This will load the FAISS index and metadata from `vector_db/acm/2.15` and return the most relevant document chunks. You can specify the version to query using the `-v` flag (e.g., `-v 2.16`).
 
 ### Combining Multiple Products/Versions in a Single DB
 
