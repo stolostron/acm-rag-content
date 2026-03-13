@@ -48,7 +48,9 @@ def main() -> int:
 
     sanitized_version = args.version.replace(".", "_")
     INDEX_NAME = f"{args.product}_docs-{sanitized_version}"
-    FAISS_INDEX_PATH = OUTPUT_DIR / "faiss_index.bin"
+    # LlamaIndex natively names its binary FAISS index blob with a .json extension.
+    # Do not be confused: this is a binary FAISS file, not a parseable text file.
+    FAISS_INDEX_PATH = OUTPUT_DIR / "default__vector_store.json"
 
     if not OUTPUT_DIR.exists():
         print(f"Error: Vector DB directory not found at {OUTPUT_DIR}", file=sys.stderr)

@@ -216,6 +216,100 @@ class TestCustomProcessor(unittest.TestCase):
             kwargs = mock_doc_processor.process.call_args.kwargs
             self.assertEqual(kwargs["required_exts"], [".md", ".txt"])
 
+    def test_run_metadata_patching(self):
+        from unittest.mock import MagicMock, patch
+        import custom_processor
+        import tempfile
+        import os
+        import json
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Setup initial state
+            metadata_path = os.path.join(tmpdir, "metadata.json")
+            initial_data = {"embedding-model": "test-model", "other": "data"}
+            with open(metadata_path, "w") as f:
+                json.dump(initial_data, f)
+            
+            config_path = os.path.join(tmpdir, "config.yaml")
+            with open(config_path, "w") as f:
+                f.write("products:\n  acm:\n    url_template: http://example.com/{version}\n")
+
+            with (
+                patch("custom_processor.utils.get_common_arg_parser") as mock_get_parser,
+                patch("custom_processor.DocumentProcessor"),
+                patch("custom_processor.CustomMetadataProcessor"),
+            ):
+                mock_args = MagicMock()
+                mock_args.product = "acm"
+                mock_args.version = "2.15"
+                mock_args.folder = "/tmp/docs"
+                mock_args.output = tmpdir
+                mock_args.config = config_path
+                mock_args.log_level = "INFO"
+                mock_args.unreachable_action = "warn"
+                mock_args.model_name = "mock-model"
+                mock_args.model_dir = "/tmp/model"
+                mock_args.workers = 1
+                mock_args.vector_store_type = "faiss"
+                mock_args.chunk = 1024
+                mock_args.overlap = 0
+                mock_args.index = "default"
+                mock_get_parser.return_value.parse_args.return_value = mock_args
+
+                # Run
+                custom_processor.run()
+
+            # Verify the patch
+            with open(metadata_path, "r") as f:
+                final_data = json.load(f)
+            self.assertIn("embedding-model-name", final_data)
+            self.assertEqual(final_data["embedding-model-name"], "test-model")
+            self.assertNotIn("embedding-model", final_data)
+            self.assertEqual(final_data["other"], "data")
+
+    def test_run_metadata_patching_invalid_json(self):
+        from unittest.mock import MagicMock, patch
+        import custom_processor
+        import tempfile
+        import os
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            metadata_path = os.path.join(tmpdir, "metadata.json")
+            with open(metadata_path, "w") as f:
+                f.write("{invalid-json:")
+
+            config_path = os.path.join(tmpdir, "config.yaml")
+            with open(config_path, "w") as f:
+                f.write("products:\n  acm:\n    url_template: http://example.com/{version}\n")
+
+            with (
+                patch("custom_processor.utils.get_common_arg_parser") as mock_get_parser,
+                patch("custom_processor.DocumentProcessor"),
+                patch("custom_processor.CustomMetadataProcessor"),
+                patch("custom_processor.logging.exception") as mock_log_exception
+            ):
+                mock_args = MagicMock()
+                mock_args.product = "acm"
+                mock_args.version = "2.15"
+                mock_args.folder = "/tmp/docs"
+                mock_args.output = tmpdir
+                mock_args.config = config_path
+                mock_args.log_level = "INFO"
+                mock_args.unreachable_action = "warn"
+                mock_args.model_name = "mock-model"
+                mock_args.model_dir = "/tmp/model"
+                mock_args.workers = 1
+                mock_args.vector_store_type = "faiss"
+                mock_args.chunk = 1024
+                mock_args.overlap = 0
+                mock_args.index = "default"
+                mock_get_parser.return_value.parse_args.return_value = mock_args
+
+                # Run - Should not raise exception
+                custom_processor.run()
+                
+            mock_log_exception.assert_called_with("Failed to patch metadata.json")
+
 
 if __name__ == "__main__":
     unittest.main()

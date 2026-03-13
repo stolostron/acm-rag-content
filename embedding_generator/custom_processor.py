@@ -280,6 +280,23 @@ def run() -> int:
     # Save the new vector database to the output directory
     document_processor.save(args.index, args.output)
 
+    # OpenShift Lightspeed BYOK expects 'embedding-model-name' instead of 'embedding-model'
+    # in metadata.json. Let's patch it for compatibility.
+    metadata_path = os.path.join(args.output, "metadata.json")
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+            if "embedding-model" in metadata:
+                metadata["embedding-model-name"] = metadata.pop("embedding-model")
+                tmp_path = metadata_path + ".tmp"
+                with open(tmp_path, "w") as f:
+                    json.dump(metadata, f)
+                os.replace(tmp_path, metadata_path)
+                logging.info("Patched metadata.json with 'embedding-model-name' key.")
+        except (OSError, json.JSONDecodeError):
+            logging.exception("Failed to patch metadata.json")
+
     return 0
 
 
